@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+		http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context-3.1.xsd
+		http://www.springframework.org/schema/mvc 
+		http://www.springframework.org/schema/mvc/spring-mvc-3.1.xsd
+	">
+
+	<context:property-placeholder
+		properties-ref="deployProperties" />
+
+	<!-- Activates various annotations to be detected in bean classes -->
+	<context:annotation-config />
+
+	<!-- Scans the classpath for annotated components that will be auto-registered 
+		as Spring beans. For example @Controller and @Service. Make sure to set the 
+		correct base-package -->
+	<context:component-scan base-package="com.aripd" />
+
+	<!-- sending e-mail -->
+	<bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+		<property name="host" value="${mail.host}" />
+		<property name="port" value="${mail.port}" />
+		<property name="username" value="${mail.username}" />
+		<property name="password" value="${mail.password}" />
+		<property name="javaMailProperties">
+			<props>
+				<!-- Use SMTP transport protocol -->
+				<prop key="mail.transport.protocol">${mail.transport.protocol}</prop>
+				<!-- Use SMTP-AUTH to authenticate to SMTP server -->
+				<prop key="mail.smtp.auth">${mail.smtp.auth}</prop>
+				<!-- Use TLS to encrypt communication with SMTP server -->
+				<prop key="mail.smtp.starttls.enable">${mail.smtp.starttls.enable}</prop>
+				<prop key="mail.debug">${mail.debug}</prop>
+			</props>
+		</property>
+	</bean>
+
+	<bean id="alertMailMessage" class="org.springframework.mail.SimpleMailMessage">
+		<property name="bcc">
+			<value>${mail.username}</value>
+		</property>
+		<property name="from">
+			<value>${mail.username}</value>
+		</property>
+		<property name="subject"
+			value="Hizmet kaydınız" />
+	</bean>
+
+	<!-- Configures the annotation-driven Spring MVC Controller programming 
+		model. Note that, with Spring 3.1, this tag works in Servlet MVC only! -->
+	<mvc:annotation-driven validator="validator">
+		<mvc:argument-resolvers>
+			<bean class="com.aripd.common.utils.TableParamArgumentResolver" />
+		</mvc:argument-resolvers>
+	</mvc:annotation-driven>
+
+	<mvc:interceptors>
+		<ref bean="localeChangeInterceptor" />
+		<bean class="com.aripd.common.interceptor.TestInterceptor" />
+		<bean class="com.aripd.common.interceptor.ExecuteTimeInterceptor" />
+		<!-- bean class="com.aripd.common.interceptor.MaintenanceInterceptor"> 
+			<property name="maintenanceStartTime" value="1" /> <property name="maintenanceEndTime" 
+			value="2" /> <property name="maintenanceMapping" value="/SpringMVC/maintenance.htm" 
+			/> </bean -->
+	</mvc:interceptors>
+
+	<mvc:resources mapping="/resources/**" location="/resources/" />
+	<!-- mvc:resources mapping="/i/**" location="WEB-INF/images/" /> <mvc:resources 
+		mapping="/c/**" location="WEB-INF/css/" /> <mvc:resources mapping="/s/**" 
+		location="WEB-INF/scripts/" /> <mvc:resources mapping="/favicon.ico" location="WEB-INF/images/favicon.ico" 
+		/ -->
+
+	<!-- Application Message Bundle -->
+	<bean id="messageSource"
+		class="org.springframework.context.support.ReloadableResourceBundleMessageSource"
+		p:basename="classpath:locale/messages" />
+
+	<!-- Locale Change Interceptor and Resolver definition -->
+	<bean id="localeChangeInterceptor"
+		class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor"
+		p:paramName="language" />
+	<bean id="localeResolver"
+		class="org.springframework.web.servlet.i18n.SessionLocaleResolver"
+		p:defaultLocale="tr_TR" />
+
+	<!-- Imports logging configuration -->
+	<import resource="trace-context.xml" />
+
+	<!-- Imports datasource configuration -->
+	<import resource="spring-data.xml" />
+
+	<bean id="deployProperties"
+		class="org.springframework.beans.factory.config.PropertiesFactoryBean"
+		p:location="/WEB-INF/spring.properties" />
+
+	<!-- Validator Message Source -->
+	<bean id="validator"
+		class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean">
+		<property name="validationMessageSource" ref="messageSource" />
+	</bean>
+
+	<!-- RESTful -->
+	<bean id="xstreamMarshaller" class="org.springframework.oxm.xstream.XStreamMarshaller" />
+	<bean id="xmlMessageConverter"
+		class="org.springframework.http.converter.xml.MarshallingHttpMessageConverter">
+		<constructor-arg ref="xstreamMarshaller" />
+		<property name="supportedMediaTypes" value="application/xml" />
+	</bean>
+	<bean id="jsonHttpMessageConverter"
+		class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter">
+		<property name="prefixJson" value="false" />
+		<property name="supportedMediaTypes" value="application/json" />
+	</bean>
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+		<property name="messageConverters">
+			<list>
+				<ref bean="xmlMessageConverter" />
+				<ref bean="jsonHttpMessageConverter" />
+			</list>
+		</property>
+	</bean>
+
+	<!-- Multipart Resolver -->
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<!-- one of the properties available; the maximum file size in bytes -->
+		<property name="maxUploadSize" value="100000" />
+	</bean>
+
+	<!-- initializing data to realize some test -->
+	<beans>
+		<bean init-method="init" id="accountDataService"
+			class="com.aripd.account.service.AccountDataService" />
+	</beans>
+
+</beans>
